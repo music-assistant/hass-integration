@@ -1,0 +1,34 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Apparaat is al toegevoegd"
+        },
+        "error": {
+            "duplicate_entry": "Die host is al toegevoegd.",
+            "invalid_auth": "Ongeldige authencatie",
+            "unknown": "Onverwachte fout"
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "host": "Hostnaam/IP naar de Music Assistant Server",
+                    "port": "Poort",
+                    "username": "Gebruikersnaam",
+                    "password": "Wachtwoord",
+                    "ssl": "Gebruik SSL"
+                },
+                "description": "Geef de gegevens op waarmee er verbinding gemaakt kan worden met je Music Assistant Server.",
+                "title": "Configureer Music Assistant Server"
+            },
+            "discovery_confirm": {
+                "description": "Wil je Music Assistant (`{name}`) toevoegen aan Home Assistant?",
+                "title": "Music Assistant ontdekt op het netwerk",
+                "data": {
+                  "username": "Gebruikersnaam",
+                  "password": "Wachtwoord"
+                }
+            }
+        }
+    },
+    "title": "Music Assistant"
+}
