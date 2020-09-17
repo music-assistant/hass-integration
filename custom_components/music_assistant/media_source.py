@@ -35,6 +35,7 @@ _LOGGER = logging.getLogger(__name__)
 MEDIA_TYPE_RADIO = "radio"
 CONTENT_TYPE_AUDIO = "audio"
 MASS_URI_SCHEME = f"{URI_SCHEME}{DOMAIN}/"
+ITEM_ID_SEPERATOR = "###"
 
 PLAYABLE_MEDIA_TYPES = [
     MEDIA_TYPE_PLAYLIST,
@@ -283,7 +284,7 @@ async def async_create_media_item_source(mass: MusicAssistant, media_item: dict)
         title = media_item["name"]
 
     # create media_content_id from provider/item_id combination
-    media_item_id = f'{media_item["provider"]}_{media_item["item_id"]}'
+    media_item_id = f'{media_item["provider"]}{ITEM_ID_SEPERATOR}{media_item["item_id"]}'
 
     # we're constructing the identifier and media_content_id manually
     # this way we're compatible with both BrowseMedia and BrowseMediaSource
@@ -322,7 +323,7 @@ async def async_parse_uri(uri: str) -> dict:
     if len(uri.split("/")) > 2:
         content_id = uri.split("/")[2]
         if content_id:
-            provider, item_id = content_id.split("_")
+            provider, item_id = content_id.split(ITEM_ID_SEPERATOR)
     # return a dict that is (partly) compatible with the Music Assistant MediaItem structure
     return {
         "item_id": item_id,

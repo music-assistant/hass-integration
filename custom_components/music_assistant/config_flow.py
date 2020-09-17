@@ -99,6 +99,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_zeroconf(self, discovery_info: DiscoveryInfoType):
         """Handle discovery."""
+        # pylint: disable=attribute-defined-outside-init
         unique_id = discovery_info["properties"]["id"]
         await self.async_set_unique_id(unique_id)
         self._host = discovery_info["properties"]["host"]

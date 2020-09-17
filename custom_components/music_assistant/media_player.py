@@ -17,6 +17,8 @@ from homeassistant.components.media_player.const import (
     SUPPORT_VOLUME_MUTE,
     SUPPORT_VOLUME_SET,
     SUPPORT_VOLUME_STEP,
+    ATTR_MEDIA_ENQUEUE,
+    MEDIA_TYPE_PLAYLIST,
 )
 from homeassistant.components.media_player.errors import BrowseError
 from homeassistant.const import STATE_IDLE, STATE_OFF, STATE_PAUSED, STATE_PLAYING
@@ -40,6 +42,8 @@ from .media_source import (
     async_create_item_listing,
     async_create_server_listing,
     async_parse_uri,
+    PLAYABLE_MEDIA_TYPES,
+    ITEM_ID_SEPERATOR,
 )
 
 SUPPORTED_FEATURES = (
@@ -73,7 +77,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         if player_id not in media_players:
             # new player!
             if not player_data["available"]:
-                return # we don't add unavailable players
+                return  # we don't add unavailable players
             media_player = MassPlayer(mass, player_data)
             media_players.add(player_id)
             async_add_entities([media_player])
@@ -150,6 +154,11 @@ class MassPlayer(MediaPlayerEntity):
             self.async_write_ha_state()
 
     @property
+    def device_state_attributes(self) -> dict:
+        """Return device specific state attributes."""
+        return {"mass_player_id": self.player_id}
+
+    @property
     def available(self):
         """Return True if entity is available."""
         return self._player_data.get("available")
@@ -202,7 +211,7 @@ class MassPlayer(MediaPlayerEntity):
     def media_content_id(self):
         """Content ID of current playing media."""
         if self._queue_cur_item:
-            return f'{self._queue_cur_item["provider"]}_{self._queue_cur_item["item_id"]}'
+            return f'{self._queue_cur_item["provider"]}{ITEM_ID_SEPERATOR}{self._queue_cur_item["item_id"]}'
         return None
 
     @property
@@ -333,13 +342,38 @@ class MassPlayer(MediaPlayerEntity):
 
     async def async_play_media(self, media_type, media_id, **kwargs):
         """Send the play_media command to the media player."""
+        queue_opt = "add" if kwargs.get(ATTR_MEDIA_ENQUEUE) else "play"
         if media_id.startswith(MASS_URI_SCHEME):
+            # got uri from source/media browser
             media = await async_parse_uri(media_id)
-            enqueue = kwargs.get("enqueue", False)
-            queue_opt = "add" if enqueue else "play"
             await self._mass.async_play_media(self.player_id, dict(media), queue_opt)
+        elif media_type in PLAYABLE_MEDIA_TYPES and ITEM_ID_SEPERATOR in media_id:
+            # direct media item
+            provider, item_id = media_id.split(ITEM_ID_SEPERATOR)
+            await self._mass.async_play_media(
+                self.player_id,
+                {"media_type": media_type, "item_id": item_id, "provider": provider},
+                queue_opt,
+            )
+        elif media_type in PLAYABLE_MEDIA_TYPES and ITEM_ID_SEPERATOR in media_id:
+            # direct media item
+            provider, item_id = media_id.split(ITEM_ID_SEPERATOR)
+            await self._mass.async_play_media(
+                self.player_id,
+                {"media_type": media_type, "item_id": item_id, "provider": provider},
+                queue_opt,
+            )
+        elif media_type == MEDIA_TYPE_PLAYLIST:
+            # library playlist by name
+            for playlist in await self._mass.async_get_library_playlists():
+                if playlist["name"] == media_id:
+                    await self._mass.async_play_media(self.player_id, playlist, queue_opt)
+                    break
         elif media_id.startswith("http"):
+            # plain url
             await self._mass.async_player_command(self.player_id, "play_uri", media_id)
+        else:
+            _LOGGER.warning("Unsupported media: %s - %s", media_type, media_id)
 
     async def async_browse_media(self, media_content_type=None, media_content_id=None):
         """Implement the websocket media browsing helper."""
