@@ -1,34 +1,45 @@
 {
-    "config": {
-        "abort": {
-            "already_configured": "Device is already configured"
-        },
-        "error": {
-            "duplicate_entry": "That host has already been added.",
-            "invalid_auth": "Invalid authentication",
-            "unknown": "Unexpected error"
-        },
-        "step": {
-            "user": {
-                "data": {
-                    "host": "Hostname/IP of the Music Assistant Server",
-                    "port": "Port",
-                    "username": "Username",
-                    "password": "Password",
-                    "ssl": "Use SSL"
-                },
-                "description": "Please enter the details to connect to you Music Assistant Server.",
-                "title": "Configure Music Assistant Server"
-            },
-            "discovery_confirm": {
-                "description": "Do you want to add Music Assistant (`{name}`) to Home Assistant?",
-                "title": "Discovered Music Assistant",
-                "data": {
-                  "username": "Username",
-                  "password": "Password"
-                }
-            }
-        }
+  "config": {
+    "abort": {
+      "already_configured": "Device is already configured"
     },
-    "title": "Music Assistant"
+    "error": {
+      "duplicate_entry": "That host has already been added.",
+      "invalid_auth": "Invalid authentication",
+      "unknown": "Unexpected error"
+    },
+    "step": {
+      "user": {
+        "data": {
+          "host": "Hostname/IP of the Music Assistant Server",
+          "port": "Port",
+          "username": "Username",
+          "password": "Password",
+          "ssl": "Use SSL",
+          "entities": "Entities test"
+        },
+        "description": "Please enter the details to connect to you Music Assistant Server.",
+        "title": "Configure Music Assistant Server"
+      },
+      "discovery_confirm": {
+        "description": "Do you want to add Music Assistant (`{name}`) to Home Assistant?",
+        "title": "Discovered Music Assistant",
+        "data": {
+          "username": "Username",
+          "password": "Password"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "power_controls": "Entities that may be used as Power Control for Music Assistant Players.",
+          "volume_controls": "Entities that may be used as Volume Control for Music Assistant Players."
+        }
+      }
+    }
+  },
+  "title": "Music Assistant"
 }

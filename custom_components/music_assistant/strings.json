@@ -10,7 +10,7 @@
           "port": "[%key:common::config_flow::data::port%]",
           "username": "[%key:common::config_flow::data::username%]",
           "password": "[%key:common::config_flow::data::password%]",
-          "ssl": "[%key:common::config_flow::data::ssl%]",
+          "ssl": "[%key:common::config_flow::data::ssl%]"
         },
         "discovery_confirm": {
           "description": "Do you want to add Music Assistant (`{name}`) to Home Assistant?",
@@ -19,15 +19,26 @@
             "username": "[%key:common::config_flow::data::username%]",
             "password": "[%key:common::config_flow::data::password%]"
           }
+        }
+      },
+      "error": {
+        "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
+        "unknown": "[%key:common::config_flow::error::unknown%]",
+        "duplicate_entry": "That host has already been added."
+      },
+      "abort": {
+        "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
       }
-    },
-    "error": {
-      "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
-      "unknown": "[%key:common::config_flow::error::unknown%]",
-      "duplicate_entry": "That host has already been added."
-    },
-    "abort": {
-      "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "power_controls": "Entities that may be used as Power Control for Music Assistant Players.",
+          "volume_controls": "Entities that may be used as Volume Control for Music Assistant Players."
+        }
+      }
     }
   }
 }

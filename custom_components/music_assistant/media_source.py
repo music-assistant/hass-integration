@@ -55,26 +55,11 @@ LIBRARY_MAP = {
 
 
 CONTENT_TYPE_MEDIA_CLASS = {
-    "playlists": {
-        "parent": MEDIA_CLASS_DIRECTORY,
-        "children": MEDIA_CLASS_PLAYLIST,
-    },
-    "artists": {
-        "parent": MEDIA_CLASS_DIRECTORY,
-        "children": MEDIA_CLASS_ARTIST,
-    },
-    "albums": {
-        "parent": MEDIA_CLASS_DIRECTORY,
-        "children": MEDIA_CLASS_ALBUM,
-    },
-    "tracks": {
-        "parent": MEDIA_CLASS_DIRECTORY,
-        "children": MEDIA_CLASS_TRACK,
-    },
-    "radios": {
-        "parent": MEDIA_CLASS_DIRECTORY,
-        "children": MEDIA_CLASS_MUSIC,
-    },
+    "playlists": {"parent": MEDIA_CLASS_DIRECTORY, "children": MEDIA_CLASS_PLAYLIST},
+    "artists": {"parent": MEDIA_CLASS_DIRECTORY, "children": MEDIA_CLASS_ARTIST},
+    "albums": {"parent": MEDIA_CLASS_DIRECTORY, "children": MEDIA_CLASS_ALBUM},
+    "tracks": {"parent": MEDIA_CLASS_DIRECTORY, "children": MEDIA_CLASS_TRACK},
+    "radios": {"parent": MEDIA_CLASS_DIRECTORY, "children": MEDIA_CLASS_MUSIC},
     MEDIA_TYPE_PLAYLIST: {
         "parent": MEDIA_CLASS_PLAYLIST,
         "children": MEDIA_CLASS_TRACK,
@@ -135,9 +120,9 @@ class MusicAssistentSource(MediaSource):
             return await async_create_root_listing(self.hass)
         elif item.identifier.endswith("/root"):
             # got request for the main listing of a specific mass instance
-            mass_host = item.identifier.split("/")[1]
+            mass_id = item.identifier.split("/")[1]
             for mass_instance in self.hass.data[DOMAIN].values():
-                if mass_instance.host == mass_host:
+                if mass_instance.server_id == mass_id:
                     return await async_create_server_listing(mass_instance)
             raise BrowseError("Invalid Music Assistance instance")
 
@@ -145,7 +130,7 @@ class MusicAssistentSource(MediaSource):
             # sublevel requested
             media_item = await async_parse_uri(item.identifier)
             for mass_instance in self.hass.data[DOMAIN].values():
-                if mass_instance.host != media_item["mass_host"]:
+                if mass_instance.server_id != media_item["mass_id"]:
                     continue
                 return await async_create_item_listing(mass_instance, media_item)
             raise BrowseError("Invalid Music Assistance instance")
@@ -170,7 +155,9 @@ async def async_create_root_listing(hass: HomeAssistant):
             children=[],
         )
         for mass_instance in hass.data[DOMAIN].values():
-            root_source.children.append(await async_create_server_listing(mass_instance))
+            root_source.children.append(
+                await async_create_server_listing(mass_instance)
+            )
         return root_source
 
 
@@ -178,7 +165,7 @@ async def async_create_server_listing(mass: MusicAssistant):
     """Create the Library sources (main listing) for a Music Assistant instance."""
     parent_source = BrowseMediaSource(
         domain=DOMAIN,
-        identifier=f"{mass.host}/root",
+        identifier=f"{mass.server_id}/root",
         title=f"{DEFAULT_NAME} ({mass.host})",
         media_class=MEDIA_CLASS_DIRECTORY,
         media_content_type=CONTENT_TYPE_AUDIO,
@@ -189,7 +176,7 @@ async def async_create_server_listing(mass: MusicAssistant):
     for media_type, title in LIBRARY_MAP.items():
         child_source = BrowseMediaSource(
             domain=DOMAIN,
-            identifier=f"{mass.host}/{media_type}",
+            identifier=f"{mass.server_id}/{media_type}",
             title=title,
             media_class=MEDIA_CLASS_DIRECTORY,
             media_content_type=CONTENT_TYPE_AUDIO,
@@ -217,21 +204,32 @@ async def async_create_item_listing(mass: MusicAssistant, media_item: dict):
     elif media_item["media_type"] == MEDIA_TYPE_PLAYLIST:
         # playlist tracks
         source = await async_create_media_item_source(
-            mass, await mass.async_get_playlist(media_item["item_id"], media_item["provider"])
+            mass,
+            await mass.async_get_playlist(
+                media_item["item_id"], media_item["provider"]
+            ),
         )
-        items = await mass.async_get_playlist_tracks(media_item["item_id"], media_item["provider"])
+        items = await mass.async_get_playlist_tracks(
+            media_item["item_id"], media_item["provider"]
+        )
     elif media_item["media_type"] == MEDIA_TYPE_ALBUM:
         # album tracks
         source = await async_create_media_item_source(
-            mass, await mass.async_get_album(media_item["item_id"], media_item["provider"])
+            mass,
+            await mass.async_get_album(media_item["item_id"], media_item["provider"]),
         )
-        items = await mass.async_get_album_tracks(media_item["item_id"], media_item["provider"])
+        items = await mass.async_get_album_tracks(
+            media_item["item_id"], media_item["provider"]
+        )
     elif media_item["media_type"] == MEDIA_TYPE_ARTIST:
         # artist albums
         source = await async_create_media_item_source(
-            mass, await mass.async_get_artist(media_item["item_id"], media_item["provider"])
+            mass,
+            await mass.async_get_artist(media_item["item_id"], media_item["provider"]),
         )
-        items = await mass.async_get_artist_albums(media_item["item_id"], media_item["provider"])
+        items = await mass.async_get_artist_albums(
+            media_item["item_id"], media_item["provider"]
+        )
     if not source:
         # create generic source
         source = await async_create_generic_source(mass, media_item)
@@ -253,7 +251,7 @@ async def async_create_generic_source(mass: MusicAssistant, media_item: dict):
     image = ""
     return BrowseMediaSource(
         domain=DOMAIN,
-        identifier=f'{mass.host}/{media_item["media_type"]}/{media_item["content_id"]}',
+        identifier=f'{mass.server_id}/{media_item["media_type"]}/{media_item["content_id"]}',
         title=title,
         media_class=media_class["parent"],
         children_media_class=media_class["children"],
@@ -284,11 +282,13 @@ async def async_create_media_item_source(mass: MusicAssistant, media_item: dict)
         title = media_item["name"]
 
     # create media_content_id from provider/item_id combination
-    media_item_id = f'{media_item["provider"]}{ITEM_ID_SEPERATOR}{media_item["item_id"]}'
+    media_item_id = (
+        f'{media_item["provider"]}{ITEM_ID_SEPERATOR}{media_item["item_id"]}'
+    )
 
     # we're constructing the identifier and media_content_id manually
     # this way we're compatible with both BrowseMedia and BrowseMediaSource
-    identifier = f"{mass.host}/{media_type}/{media_item_id}"
+    identifier = f"{mass.server_id}/{media_type}/{media_item_id}"
     media_content_id = f"{MASS_URI_SCHEME}{identifier}"
     src = BrowseMedia(
         title=title,
@@ -316,7 +316,7 @@ async def async_parse_uri(uri: str) -> dict:
         uri = uri.split(MASS_URI_SCHEME)[1]
     if uri.startswith("/"):
         uri = uri[1:]
-    mass_host = uri.split("/")[0]
+    mass_id = uri.split("/")[0]
     media_type = uri.split("/")[1]
     # music assistant needs a provider and item_id combination for all media items
     # we've mangled both in the content_id, used by Hass internally
@@ -329,6 +329,6 @@ async def async_parse_uri(uri: str) -> dict:
         "item_id": item_id,
         "provider": provider,
         "media_type": media_type,
-        "mass_host": mass_host,
+        "mass_id": mass_id,
         "content_id": content_id,
     }

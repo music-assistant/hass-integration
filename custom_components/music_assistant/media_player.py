@@ -3,6 +3,8 @@ import logging
 
 from homeassistant.components.media_player import MediaPlayerEntity
 from homeassistant.components.media_player.const import (
+    ATTR_MEDIA_ENQUEUE,
+    MEDIA_TYPE_PLAYLIST,
     SUPPORT_BROWSE_MEDIA,
     SUPPORT_CLEAR_PLAYLIST,
     SUPPORT_NEXT_TRACK,
@@ -17,8 +19,6 @@ from homeassistant.components.media_player.const import (
     SUPPORT_VOLUME_MUTE,
     SUPPORT_VOLUME_SET,
     SUPPORT_VOLUME_STEP,
-    ATTR_MEDIA_ENQUEUE,
-    MEDIA_TYPE_PLAYLIST,
 )
 from homeassistant.components.media_player.errors import BrowseError
 from homeassistant.const import STATE_IDLE, STATE_OFF, STATE_PAUSED, STATE_PLAYING
@@ -34,16 +34,17 @@ from .const import (
     DISPATCH_KEY_PLAYER_REMOVED,
     DISPATCH_KEY_PLAYER_UPDATE,
     DISPATCH_KEY_PLAYERS,
+    DISPATCH_KEY_QUEUE_TIME_UPDATE,
     DISPATCH_KEY_QUEUE_UPDATE,
     DOMAIN,
 )
 from .media_source import (
+    ITEM_ID_SEPERATOR,
     MASS_URI_SCHEME,
+    PLAYABLE_MEDIA_TYPES,
     async_create_item_listing,
     async_create_server_listing,
     async_parse_uri,
-    PLAYABLE_MEDIA_TYPES,
-    ITEM_ID_SEPERATOR,
 )
 
 SUPPORTED_FEATURES = (
@@ -69,7 +70,7 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up Music Assistant MediaPlayer(s) from Config Entry."""
     mass = hass.data[DOMAIN][config_entry.entry_id]
-    media_players = set()
+    media_players = {}
 
     async def async_update_media_player(player_data):
         """Add or update Music Assistant MediaPlayer."""
@@ -79,29 +80,33 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
             if not player_data["available"]:
                 return  # we don't add unavailable players
             media_player = MassPlayer(mass, player_data)
-            media_players.add(player_id)
+            media_players[player_id] = media_player
             async_add_entities([media_player])
         else:
             # update for existing player
-            async_dispatcher_send(hass, f"{DISPATCH_KEY_PLAYER_UPDATE}_{player_id}", player_data)
+            async_dispatcher_send(
+                hass, f"{DISPATCH_KEY_PLAYER_UPDATE}_{player_id}", player_data
+            )
 
     async def async_remove_media_player(player_id):
         """Handle player removal."""
-        for player in media_players:
+        for player in media_players.values():
             if player.player_id != player_id:
                 continue
             await player.async_mark_unavailable()
 
     # start listening for players to be added or changed by the server component
     async_dispatcher_connect(hass, DISPATCH_KEY_PLAYERS, async_update_media_player)
-    async_dispatcher_connect(hass, DISPATCH_KEY_PLAYER_REMOVED, async_remove_media_player)
+    async_dispatcher_connect(
+        hass, DISPATCH_KEY_PLAYER_REMOVED, async_remove_media_player
+    )
 
 
 class MassPlayer(MediaPlayerEntity):
-    """Representation of an Roon device."""
+    """Representation of Music Assistant player."""
 
     def __init__(self, mass: MusicAssistant, player_data: dict):
-        """Initialize Roon device object."""
+        """Initialize MediaPlayer entity."""
         self._mass = mass
         self._player_data = player_data
         self._queue_data = {}
@@ -124,6 +129,13 @@ class MassPlayer(MediaPlayerEntity):
                 self.async_update_queue_callback,
             )
         )
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                f"{DISPATCH_KEY_QUEUE_TIME_UPDATE}",
+                self.async_update_queue_time_callback,
+            )
+        )
         # fetch queue state once
         queue_data = await self._mass.async_get_player_queue(self.player_id)
         self._queue_data = queue_data
@@ -142,7 +154,7 @@ class MassPlayer(MediaPlayerEntity):
 
     async def async_update_queue_callback(self, queue_data):
         """Handle player queue updates."""
-        if queue_data["player_id"] == self._player_data["active_queue"]:
+        if queue_data["queue_id"] == self._player_data["active_queue"]:
             # received queue update for this player (or it's parent)
             queue_data["updated_at"] = utcnow()
             self._queue_data = queue_data
@@ -150,7 +162,17 @@ class MassPlayer(MediaPlayerEntity):
                 self._queue_cur_item = queue_data["cur_item"]
             else:
                 self._queue_cur_item = {}
-            self._cur_image = await self._mass.async_get_media_item_image_url(self._queue_cur_item)
+            self._cur_image = await self._mass.async_get_media_item_image_url(
+                self._queue_cur_item
+            )
+            self.async_write_ha_state()
+
+    async def async_update_queue_time_callback(self, queue_data):
+        """Handle player queue time updates."""
+        if queue_data["queue_id"] == self._player_data["active_queue"]:
+            # received queue time update for this player (or it's parent)
+            queue_data["updated_at"] = utcnow()
+            self._queue_data["cur_item_time"] = queue_data["cur_item_time"]
             self.async_write_ha_state()
 
     @property
@@ -171,7 +193,9 @@ class MassPlayer(MediaPlayerEntity):
     @property
     def device_info(self):
         """Return the device info."""
-        manufacturer = self._player_data.get("device_info", {}).get("manufacturer", DEFAULT_NAME)
+        manufacturer = self._player_data.get("device_info", {}).get(
+            "manufacturer", DEFAULT_NAME
+        )
         model = self._player_data.get("device_info", {}).get("model", "")
 
         return {
@@ -179,7 +203,7 @@ class MassPlayer(MediaPlayerEntity):
             "name": self.name,
             "manufacturer": manufacturer,
             "model": model,
-            "via_hub": (DOMAIN, self._mass.host),
+            "via_hub": (DOMAIN, self._mass.server_id),
         }
 
     @property
@@ -243,7 +267,8 @@ class MassPlayer(MediaPlayerEntity):
     def media_album_artist(self):
         """Album artist of current playing media (Music track only)."""
         if self._queue_cur_item and self._queue_cur_item.get("album"):
-            return self._queue_cur_item["album"]["artist"]["name"]
+            if self._queue_cur_item["album"].get("artist"):
+                return self._queue_cur_item["album"]["artist"]["name"]
         return None
 
     @property
@@ -334,7 +359,9 @@ class MassPlayer(MediaPlayerEntity):
 
     async def async_set_shuffle(self, shuffle: bool):
         """Set shuffle state."""
-        await self._mass.async_player_queue_command(self.player_id, "shuffle_enabled", shuffle)
+        await self._mass.async_player_queue_command(
+            self.player_id, "shuffle_enabled", shuffle
+        )
 
     async def async_clear_playlist(self):
         """Clear players playlist."""
@@ -367,25 +394,29 @@ class MassPlayer(MediaPlayerEntity):
             # library playlist by name
             for playlist in await self._mass.async_get_library_playlists():
                 if playlist["name"] == media_id:
-                    await self._mass.async_play_media(self.player_id, playlist, queue_opt)
+                    await self._mass.async_play_media(
+                        self.player_id, playlist, queue_opt
+                    )
                     break
         elif media_id.startswith("http"):
             # plain url
-            await self._mass.async_player_command(self.player_id, "play_uri", media_id)
+            await self._mass.async_cmd_play_uri(self.player_id, media_id)
         else:
             _LOGGER.warning("Unsupported media: %s - %s", media_type, media_id)
 
     async def async_browse_media(self, media_content_type=None, media_content_id=None):
         """Implement the websocket media browsing helper."""
 
-        if media_content_type in [None, "library"] or media_content_id.endswith("/root"):
+        if media_content_type in [None, "library"] or media_content_id.endswith(
+            "/root"
+        ):
             # main/library listing requested (for this mass instance)
             return await async_create_server_listing(self._mass)
 
         if media_content_id.startswith(MASS_URI_SCHEME):
             # sublevel requested
             media_item = await async_parse_uri(media_content_id)
-            if self._mass.host != media_item["mass_host"]:
+            if self._mass.server_id != media_item["mass_id"]:
                 # should not happen, but just in case
                 raise BrowseError("Invalid Music Assistance instance")
             return await async_create_item_listing(self._mass, media_item)

@@ -1,34 +1,44 @@
 {
-    "config": {
-        "abort": {
-            "already_configured": "Apparaat is al toegevoegd"
-        },
-        "error": {
-            "duplicate_entry": "Die host is al toegevoegd.",
-            "invalid_auth": "Ongeldige authencatie",
-            "unknown": "Onverwachte fout"
-        },
-        "step": {
-            "user": {
-                "data": {
-                    "host": "Hostnaam/IP naar de Music Assistant Server",
-                    "port": "Poort",
-                    "username": "Gebruikersnaam",
-                    "password": "Wachtwoord",
-                    "ssl": "Gebruik SSL"
-                },
-                "description": "Geef de gegevens op waarmee er verbinding gemaakt kan worden met je Music Assistant Server.",
-                "title": "Configureer Music Assistant Server"
-            },
-            "discovery_confirm": {
-                "description": "Wil je Music Assistant (`{name}`) toevoegen aan Home Assistant?",
-                "title": "Music Assistant ontdekt op het netwerk",
-                "data": {
-                  "username": "Gebruikersnaam",
-                  "password": "Wachtwoord"
-                }
-            }
-        }
+  "config": {
+    "abort": {
+      "already_configured": "Apparaat is al toegevoegd"
     },
-    "title": "Music Assistant"
+    "error": {
+      "duplicate_entry": "Die host is al toegevoegd.",
+      "invalid_auth": "Ongeldige authencatie",
+      "unknown": "Onverwachte fout"
+    },
+    "step": {
+      "user": {
+        "data": {
+          "host": "Hostnaam/IP naar de Music Assistant Server",
+          "port": "Poort",
+          "username": "Gebruikersnaam",
+          "password": "Wachtwoord",
+          "ssl": "Gebruik SSL"
+        },
+        "description": "Geef de gegevens op waarmee er verbinding gemaakt kan worden met je Music Assistant Server.",
+        "title": "Configureer Music Assistant Server"
+      },
+      "discovery_confirm": {
+        "description": "Wil je Music Assistant (`{name}`) toevoegen aan Home Assistant?",
+        "title": "Music Assistant ontdekt op het netwerk",
+        "data": {
+          "username": "Gebruikersnaam",
+          "password": "Wachtwoord"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "power_controls": "Entiteiten die gebruikt mogen worden als Power Control voor Music Assistant spelers.",
+          "volume_controls": "Entiteiten die gebruikt mogen worden als Volume Control voor Music Assistant spelers."
+        }
+      }
+    }
+  },
+  "title": "Music Assistant"
 }
