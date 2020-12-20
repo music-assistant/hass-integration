@@ -171,8 +171,8 @@ class MassPlayer(MediaPlayerEntity):
         """Handle player queue time updates."""
         if queue_data["queue_id"] == self._player_data["active_queue"]:
             # received queue time update for this player (or it's parent)
-            queue_data["updated_at"] = utcnow()
             self._queue_data["cur_item_time"] = queue_data["cur_item_time"]
+            self._queue_data["updated_at"] = utcnow()
             self.async_write_ha_state()
 
     @property
@@ -359,13 +359,11 @@ class MassPlayer(MediaPlayerEntity):
 
     async def async_set_shuffle(self, shuffle: bool):
         """Set shuffle state."""
-        await self._mass.async_player_queue_command(
-            self.player_id, "shuffle_enabled", shuffle
-        )
+        await self._mass.async_player_queue_cmd_set_shuffle(self.player_id, shuffle)
 
     async def async_clear_playlist(self):
         """Clear players playlist."""
-        await self._mass.async_player_queue_command(self.player_id, "clear")
+        await self._mass.async_player_queue_cmd_clear(self.player_id)
 
     async def async_play_media(self, media_type, media_id, **kwargs):
         """Send the play_media command to the media player."""

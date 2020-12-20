@@ -4,7 +4,6 @@ import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.typing import HomeAssistantType
@@ -47,12 +46,11 @@ async def async_setup(hass, config):
 
 async def async_setup_entry(hass: HomeAssistantType, entry: ConfigEntry):
     """Set up from a config entry."""
-    host = entry.data[CONF_HOST]
-    port = entry.data[CONF_PORT]
+    address = entry.data["address"]
     token_info = entry.data["token_info"]
     http_session = async_get_clientsession(hass, verify_ssl=False)
     mass = MusicAssistant(
-        host, token_info["token"], port, loop=hass.loop, client_session=http_session
+        address, token_info["token"], loop=hass.loop, client_session=http_session
     )
     hass.data[DOMAIN][entry.entry_id] = mass
 

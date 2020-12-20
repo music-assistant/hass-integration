@@ -99,7 +99,7 @@ class HassPlayerControls:
             return
         if control["control_type"] == CONTROL_TYPE_POWER and control["source"]:
             # power control with source support
-            if new_state and not entity.state == "off":
+            if new_state and entity.state == "off":
                 # power on = select source
                 service = "select_source"
                 await self.hass.services.async_call(

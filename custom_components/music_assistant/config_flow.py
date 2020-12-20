@@ -21,6 +21,8 @@ from .player_controls import (
     async_get_playercontrol_entities,
 )
 
+CONF_ADDRESS = "address"
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -54,12 +56,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             # try to authenticate
             try:
+                address = f"ws://{user_input[CONF_HOST]}:{user_input[CONF_PORT]}/ws"
                 token_info = await async_get_token(
-                    server=user_input[CONF_HOST],
+                    address=address,
                     username=user_input[CONF_USERNAME],
                     password=user_input[CONF_PASSWORD],
                     app_id="HomeAssistant",
-                    port=user_input[CONF_PORT],
                 )
             except Exception:  # pylint: disable=broad-except
                 _LOGGER.exception("Unexpected exception")
@@ -83,12 +85,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         # pylint: disable=attribute-defined-outside-init
         unique_id = discovery_info["properties"]["id"]
         await self.async_set_unique_id(unique_id)
-        self._host = discovery_info["properties"]["host"]
-        self._port = discovery_info["properties"]["port"]
-        self._name = discovery_info["properties"]["id"]
-        server_info = {CONF_HOST: self._host, CONF_PORT: self._port}
+        self._address = discovery_info["properties"]["address"]
+        self._name = discovery_info["properties"]["friendly_name"]
+        server_info = {CONF_ADDRESS: self._address}
         self._abort_if_unique_id_configured(updates=server_info)
-        return await self.async_step_discovery_confirm()
+        if discovery_info["properties"]["initialized"]:
+            return await self.async_step_discovery_confirm()
 
     async def async_step_discovery_confirm(self, user_input=None):
         """Handle user-confirmation of discovered node."""
@@ -96,29 +98,24 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             try:
                 token_info = await async_get_token(
-                    server=self._host,
+                    address=self._address,
                     username=user_input[CONF_USERNAME],
                     password=user_input[CONF_PASSWORD],
                     app_id="HomeAssistant",
-                    port=self._port,
                 )
             except Exception:  # pylint: disable=broad-except
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "invalid_auth"
             else:
-                data = {
-                    CONF_HOST: self._host,
-                    CONF_PORT: self._port,
-                    "token_info": token_info,
-                }
+                data = {CONF_ADDRESS: self._address, "token_info": token_info}
                 return self.async_create_entry(title=DEFAULT_NAME, data=data)
 
         return self.async_show_form(
             step_id="discovery_confirm",
             data_schema=vol.Schema(
                 {
-                    vol.Optional(CONF_USERNAME, default="admin"): str,
-                    vol.Optional(CONF_PASSWORD, default=""): str,
+                    vol.Required(CONF_USERNAME, default="admin"): str,
+                    vol.Required(CONF_PASSWORD): str,
                 }
             ),
             description_placeholders={"name": self._name},
