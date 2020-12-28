@@ -102,7 +102,7 @@ class MusicAssistentSource(MediaSource):
         """Resolve media to a url."""
         media = await async_parse_uri(item.identifier)
         for mass_instance in self.hass.data[DOMAIN].values():
-            if mass_instance.host != media["mass_host"]:
+            if mass_instance.server_id != media["mass_server_id"]:
                 continue
             if media["media_type"] in ["track", "radio"]:
                 url = f"{mass_instance.base_url}/stream_media/"
@@ -166,7 +166,7 @@ async def async_create_server_listing(mass: MusicAssistant):
     parent_source = BrowseMediaSource(
         domain=DOMAIN,
         identifier=f"{mass.server_id}/root",
-        title=f"{DEFAULT_NAME} ({mass.host})",
+        title=f"{DEFAULT_NAME} ({mass.server_name})",
         media_class=MEDIA_CLASS_DIRECTORY,
         media_content_type=CONTENT_TYPE_AUDIO,
         can_play=False,
