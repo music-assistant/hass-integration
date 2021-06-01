@@ -64,6 +64,8 @@ SUPPORTED_FEATURES = (
     | SUPPORT_BROWSE_MEDIA
 )
 
+MEDIA_TYPE_RADIO = "radio"
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -178,7 +180,10 @@ class MassPlayer(MediaPlayerEntity):
     @property
     def device_state_attributes(self) -> dict:
         """Return device specific state attributes."""
-        return {"mass_player_id": self.player_id}
+        return {
+            "player_id": self.player_id,
+            "active_queue": self._queue_data.get("queue_name"),
+        }
 
     @property
     def available(self):
@@ -394,6 +399,14 @@ class MassPlayer(MediaPlayerEntity):
                 if playlist["name"] == media_id:
                     await self._mass.async_play_media(
                         self.player_id, playlist, queue_opt
+                    )
+                    break
+        elif media_type == MEDIA_TYPE_RADIO:
+            # library radio by name
+            for radio in await self._mass.async_get_library_radios():
+                if radio["name"] == media_id:
+                    await self._mass.async_play_media(
+                        self.player_id, radio, queue_opt
                     )
                     break
         elif media_id.startswith("http"):

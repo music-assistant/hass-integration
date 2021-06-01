@@ -1,5 +1,6 @@
 """Music Assistant (music-assistant.github.io) integration."""
 
+import asyncio
 import logging
 from typing import Any
 
@@ -91,6 +92,12 @@ async def async_setup_entry(hass: HomeAssistantType, entry: ConfigEntry):
     entry.add_update_listener(async_options_updated)
 
     return True
+
+
+async def async_options_updated(hass: HomeAssistantType, entry: ConfigEntry):
+    """Handle options update."""
+    _LOGGER.info("Configuration options changed, reloading integration...")
+    asyncio.create_task(hass.config_entries.async_reload(entry.entry_id))
 
 
 async def async_unload_entry(hass, entry):
